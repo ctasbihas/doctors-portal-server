@@ -1,7 +1,8 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const app = express();
@@ -76,8 +77,6 @@ async function run() {
       };
       const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result);
-      
-
     })
 
     app.put('/user/:email', async (req, res) => {
@@ -149,6 +148,21 @@ async function run() {
       const query = { _id: ObjectId(id) };
       const booking = await bookingCollection.findOne(query);
       res.send(booking);
+    });
+
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const service = req.body;
+      const price = service.price;
+      const amount = price*100;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_methods_types:['card'] 
+      });
+       
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
     });
 
     app.post('/booking', async (req, res) => {
